@@ -34,6 +34,8 @@ app.use(
 app.use(express.json())
 app.use(bodyParser.json())
 app.use(express.urlencoded({extended:true}))
+app.use("/uploads", express.static("uploads"));
+
 // app.use(bodyParser.urlencoded ({extended:true}))
 
 app.use('/user',userRouter)

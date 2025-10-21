@@ -1,7 +1,8 @@
 import express from 'express'
-import { addCategory, adminLoginControl, adminView, deleteCategory, deleteProduct, productInsert, updateCategory, updateProduct } from '../controllers/admin.js'
+import { addCategory, adminLoginControl, adminView, deleteCategory, deleteProduct, getSingleProduct, updateCategory, updateProduct } from '../controllers/admin.js'
 import { productView, viewCategory } from '../controllers/public.js'
 import { getSingleCategory } from '../controllers/admin.js'
+import { productInsert } from '../controllers/admin.js'
 const adminRouter = express.Router()
 import multer from 'multer'
 import path from 'path'
@@ -30,16 +31,18 @@ adminRouter.get('/adminPannel',adminView)
 
 adminRouter.use(itsAdmin)
 // product
-adminRouter.post('/product',upload.single("image"),productInsert)
+adminRouter.post("/product", upload.single("image"), productInsert);
 adminRouter.put('/product/:id',updateProduct)
 adminRouter.delete('/product/:id',deleteProduct)
 adminRouter.get('/product',productView)
+adminRouter.get('/product/:id', getSingleProduct);
 
 // category
 
 adminRouter.post('/category',addCategory)
 adminRouter.get('/category',viewCategory)
 adminRouter.get('/category/:id', getSingleCategory);
+
 adminRouter.delete('/category/:id',deleteCategory)
 adminRouter.put('/category/:id',updateCategory)
 

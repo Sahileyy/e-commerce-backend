@@ -8,6 +8,9 @@ import category from "../models/categoryModel.js";
 // ********************************************!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!**********************************!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 
+
+
+
 export async function productView(req,res) {
     try{
         const allProducts = await products.find().populate('category')

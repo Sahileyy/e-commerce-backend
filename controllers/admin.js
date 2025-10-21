@@ -142,7 +142,7 @@ export async function deleteCategory(req,res){
         const id = req.params.id
         const selectedCategory = await category.findByIdAndDelete(id)
         if(!selectedCategory){
-            return res.status(404).json("invalid product")
+            return res.json("invalid product")
         }
         if(selectedCategory){
             const deleteProducts = await products.deleteMany({
@@ -152,7 +152,7 @@ export async function deleteCategory(req,res){
             console.log(deleteProducts);
             
 
-            return res.status(200).json(selectedCategory)
+            return res.status(200).json({message:"category and products inside deleted"})
         }
     }
     catch(err){
@@ -204,6 +204,22 @@ export async function getSingleCategory(req, res) {
 
 // ***************************!!!!!!!!!!!!!!!!!******************PRODUCT***********!!!!!!!!!!!!!!!!!!!!!!!!***************!!!!!!!!!!!!!!!!!!!!!
 
+
+export async function getSingleProduct(req, res) {
+  try {
+    const id = req.params.id;
+    const selectedProduct = await products.findById(id);
+    if (!selectedProduct) {
+      return res.status(404).json("Product not found");
+    }
+    res.status(200).json(selectedProduct);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json("Error fetching product");
+  }
+}
+
+
 export async function productInsert(req,res){
     try{
 
@@ -213,15 +229,16 @@ export async function productInsert(req,res){
     console.log(req.body);
     const product_check = await products.findOne({product_name:product_name})
     if (!product_check){
-               const result = await products.insertOne({
+               const result = await products.create({
                  product_name,
                  price,
                  description,
                  category,
                  image: req.file ? `/uploads/${req.file.filename}` : null,
                });
+
           console.log(result);
-          
+          res.json('product added susseccfully')
 
                 return res.json(result)
         
