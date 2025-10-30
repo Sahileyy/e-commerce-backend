@@ -8,21 +8,64 @@ import cart from "../models/cartModel.js";
 import { loginControl } from "./admin.js";
 
 
+
+
+export async function getSingleProduct(req, res) {
+  try {
+    const id = req.params.id;
+    console.log(id);
+    
+    const selectedProduct = await products.findOne({_id:id});
+    if (!selectedProduct) {
+      return res.status(404).json("Product not found");
+    }
+    res.status(200).json(selectedProduct);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json("Error fetching product");
+  }
+}
+
+
+export async function viewCart(req, res) {
+  try {
+    const userCart = await cart
+      .findOne({ user_id: req.session.user_id })
+      .populate("items.productId");
+
+    if (!userCart) {
+      return res.status(200).json({ items: [], totalAmount: 0 });
+    }
+
+    console.log(userCart);
+    res.status(200).json(userCart);
+  } catch (error) {
+    console.error("Error fetching cart:", error);
+    res.status(500).json({ message: "Error fetching cart" });
+  }
+}
+
+
+
+
+
+
+
 export async function createCart(req, res) {
     try {
         console.log("request body:", req.body);
         console.log("session:", req.session);
 
 
-
-        const { product_id, quantity, user_id } = req.body;
+          const user_id = req.session.user_id;
+        const { product_id, quantity} = req.body;
         // const user_id = req.session.username
         console.log('product_id:', product_id);
         console.log('quantity:', quantity);
         console.log('user_id:', user_id);
 
         if (!user_id) {
-            return res.status(400).json("error: user_id required in body")
+            return res.status(401).json("error: user_id required in body")
         }
 
         if (!product_id) {
@@ -157,50 +200,42 @@ export async function deleteCart(req, res) {
     }
 }
 // *****************************************//////////////////////////////////////////////////////////////////////////////////*********************************************
-
 export async function CreateOrder(req, res) {
-    try {
-        const { user_id, orderStatus } = req.body;
-       
-        if (!user_id) {
-            return res.json('user not found')
-        }
-        const cartFound = await cart.findOne({ user_id: user_id });
-       
+  try {
+    const user_id = req.session.user_id; 
+    const { orderStatus } = req.body;
 
-        if (cartFound.items.length === 0) {
-            return res.status(404).json("cart is empty")
-        }
-        
-
-        let itemsOrder = [];
-
-        cartFound.items.forEach(item => {
-            itemsOrder.push({
-                product_id: item.productId,
-                quantity: item.quantity,
-                price: item.price,
-                total_item: item.quantity * item.price
-
-            })
-
-        });
-        console.log(itemsOrder);
-
-
-        const order = await orders.create({
-            user_id: user_id,
-            items: itemsOrder,
-            total_price: cartFound.totalAmount,
-            orderStatus: orderStatus
-        })
-
-        res.status(200).json(order);
-
-    } catch (error) {
-        console.error(error);
-        res.json("something went wrong")
+    if (!user_id) {
+      return res.status(401).json("User not logged in");
     }
+
+    const cartFound = await cart.findOne({ user_id }).populate("items.productId");
+
+    if (!cartFound || cartFound.items.length === 0) {
+      return res.status(404).json("Cart is empty");
+    }
+
+    const itemsOrder = cartFound.items.map((item) => ({
+      product_id: item.productId._id,
+      quantity: item.quantity,
+      price: item.price,
+      total_item: item.quantity * item.price,
+    }));
+
+    const order = await orders.create({
+      user_id,
+      items: itemsOrder,
+      total_price: cartFound.totalAmount,
+      status: orderStatus || "pending",
+    });
+      return res.status(200).json({
+      message: "Order placed successfully",
+      order,});
+
+  } catch (error) {
+    console.error("Error creating order:", error);
+    res.status(500).json("Something went wrong");
+  }
 }
 
 // *****************************************//////////////////////////////////////////////////////////////////////////////////*********************************************
@@ -243,21 +278,15 @@ export async function updateOrder(req, res) {
 // *****************************************//////////////////////////////////////////////////////////////////////////////////*********************************************
 
 
-
 export async function getOrderById(req, res) {
   try {
-    const order_Id = req.params._id;
-    console.log(order_Id);
-    
+    const orderId = req.params.id;
+    console.log("Order ID:", orderId);
 
-
-    const order = await orders.findOne(order_Id);
-    console.log(order);
-    
+    const order = await orders.findById(orderId).populate("items.product_id"); 
 
     if (!order) {
-     
-        return res.status(404).json("Order not found" );
+      return res.status(404).json("Order not found");
     }
 
     res.status(200).json(order);
@@ -269,6 +298,28 @@ export async function getOrderById(req, res) {
 
 // *****************************************//////////////////////////////////////////////////////////////////////////////////*********************************************
 
+export async function getUserOrders(req, res) {
+  try {
+    const user_id = req.session.user_id; 
+    if (!user_id) {
+      return res.status(401).json("User not logged in");
+    }
+
+    const userOrders = await orders
+      .find({ user_id })
+      .populate({path:"items.product_id",model:"products"}) 
+      .sort({ createdAt: -1 });
+
+    if (!userOrders || userOrders.length === 0) {
+      return res.status(404).json("No orders found for this user");
+    }
+
+    res.status(200).json(userOrders);
+  } catch (error) {
+    console.error("Error fetching user orders:", error);
+    res.status(500).json({ error: "Something went wrong while fetching orders" });
+  }
+}
 
 
 export async function deleteOrderById(req, res) {

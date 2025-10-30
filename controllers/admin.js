@@ -4,112 +4,142 @@ import bcrypt from 'bcrypt'
 import users from '../models/usersModel.js'
 import products from '../models/productModel.js'
 import category from '../models/categoryModel.js'
+import orders from '../models/ordersModel.js'
+import { response } from 'express'
 
+export async function loginControl(req, res) {
+  try {
+    const { username, password } = req.body;
 
-export async function loginControl(req,res){
-    try{
-    
-        const {username:username,
-            password:password
-        } =  req.body
-        const saltRounds = 10;
-     
-        const login_name = await users.findOne({username:username})
-        console.log(login_name);
-        const pass_check = await  bcrypt.compare(password,login_name.password)
-        
-        req.session.role = login_name.role;
-        req.session.username = login_name.username
-      
-        if(login_name.role === "user" && pass_check){
-         
-           return  res.json('USER LOGGED IN')
-        }
-        if(!login_name.username && pass_check){
-            return res.json("Invalid username")
-        }
-    // console.log(req.session);
-          if( login_name.role === 'user' && !pass_check){
-            return res.json("Check password")
-        }
-
-        
+    const loginUser = await users.findOne({ username });
+    if (!loginUser) {
+      return res.json({ message: "Invalid username" });
     }
-    catch(err){
-        console.log(err);
-        return res.json('invalid login')
-        
+
+    const passCheck = await bcrypt.compare(password, loginUser.password);
+    if (!passCheck) {
+      return res.json({ message: "Invalid password" });
     }
+
+    if (loginUser.role !== "user") {
+      return res.json({ message: "Not authorized as user" });
+    }
+
+    // Store session info if using express-session
+    req.session.user_id = loginUser._id;
+    req.session.role = loginUser.role;
+    req.session.username = loginUser.username;
+
+    // ✅ send proper response
+    return res.json({
+      message: "USER LOGGED IN",
+      user: {
+        id: loginUser._id,
+        username: loginUser.username,
+        email: loginUser.email,
+        role: loginUser.role,
+      },
+    });
+  } catch (err) {
+    console.error(err);
+    return res.json({ message: "Invalid login" });
+  }
 }
+
 // ***************************!!!!!!!!!!!!!!!!!*****************************!!!!!!!!!!!!!!!!!!!!!!!!*****
+export async function adminLoginControl(req, res) {
+  try {
+    const { username, password } = req.body;
 
-export async function  adminLoginControl(req,res){
-    try{
-          const {username,email,
-            password
-        } =  req.body;
+    const adminUser = await users.findOne({ username });
+    if (!adminUser) {
+      return res.json({ message: "Admin not found" });
+    }
+
+    if (adminUser.role !== "admin") {
+      return res.json({ message: "Not authorized as admin" });
+    }
+
+    const passCheck = await bcrypt.compare(password, adminUser.password);
+    if (!passCheck) {
+      return res.json({ message: "Invalid password" });
+    }
+
+    req.session.role = adminUser.role;
+    req.session.username = adminUser.username;
+
+    // ✅ send consistent response
+    console.log(adminUser);
+    return res.json({
+      message: "ADMIN LOGGED IN",
+      user: {
+        id: adminUser._id,
+        username: adminUser.username,
+        email: adminUser.email,
+        role: adminUser.role,
+      },
+    });
     
-        console.log(req.body);
-        
-        
-        const login_name = await users.findOne({username:username})
-        console.log(login_name);
-
-                if (!login_name) {
-      return res.json("admin not found" );
-    }
-
-
-        if(!login_name.role === "admin" ){
-
-            return res.json("Check username")
-        }
-         const pass_check = await  bcrypt.compare(password,login_name.password)
-        
-         req.session.role = login_name.role;
-         req.session.username = login_name.username
-         
-         if(login_name.role === "admin" && pass_check){
-
-            return res.json("ADMIN LOGGED IN")
-        }
-          
-          
-        if(login_name.role === "admin"&& !pass_check){
-
-            return res.json("Check password")
-        }
-
-    }
-    catch(err){
-
-        console.log(err);
-        
-          return res.json("Invalid authentication")
-
-
-    }
+  } catch (err) {
+    console.error(err);
+    return res.json({ message: "Invalid authentication" });
+  }
 }
-
-
-
 
 
 // ***************************!!!!!!!!!!!!!!!!!*****************************!!!!!!!!!!!!!!!!!!!!!!!!*****
 
-
-
-export let allUsers
-
-export async function adminView(req,res) {
+export async function editUser(req,res) {
     try{
-        allUsers = await users.find()
-        return res.json(allUsers)
+    const id = req.params.id;
+const { enable } = req.body || {}; // Prevent crash
+
+if (typeof enable === 'undefined') {
+  return res.status(400).json({ error: "'enable' field is required in body" });
+}
+
+// const updatedBooleanValue = Boolean(enable);
+
+const found = await users.findByIdAndUpdate(
+  id,
+  { $set: {enable} },
+  { new: true }
+);
+console.log(found);
+
+
+if (!found) {
+  return res.json("user not found");
+}
+
+res.json({
+  message: `${found.username} is updated`,
+  success: true,
+});
+
     }
-    catch(errr){
-        console.log(errr);
+    catch(err){
+        console.log(err);
         
-    }   
+    }
+}
+
+
+
+
+export async function adminView(req, res) {
+  try {
+
+    const allUsers = await users.find(); 
+    
+    console.log(allUsers);
+
+    // Send JSON response
+    return res.status(200).json(allUsers);
+  } catch (err) {
+    console.error("Error fetching users:", err);
+    return;
+  }
 }
 
 // ***************************!!!!!!!!!!!!!!!!!******************category***********!!!!!!!!!!!!!!!!!!!!!!!!***************!!!!!!!!!!!!!!!!!!!!!
@@ -205,19 +235,6 @@ export async function getSingleCategory(req, res) {
 // ***************************!!!!!!!!!!!!!!!!!******************PRODUCT***********!!!!!!!!!!!!!!!!!!!!!!!!***************!!!!!!!!!!!!!!!!!!!!!
 
 
-export async function getSingleProduct(req, res) {
-  try {
-    const id = req.params.id;
-    const selectedProduct = await products.findById(id);
-    if (!selectedProduct) {
-      return res.status(404).json("Product not found");
-    }
-    res.status(200).json(selectedProduct);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json("Error fetching product");
-  }
-}
 
 
 export async function productInsert(req,res){
@@ -266,6 +283,7 @@ export async function productInsert(req,res){
 export async function deleteProduct(req,res){
     try{
         const id = req.params.id
+       
 
         const selectedProduct = await products.findByIdAndDelete(id)
         if(!selectedProduct){
@@ -285,24 +303,98 @@ export async function deleteProduct(req,res){
 
 // / ***************************!!!!!!!!!!!!!!!!!******************PRODUCTupdate***********!!!!!!!!!!!!!!!!!!!!!!!!***************!!!!!!!!!!!!!!!!!!!!!
 
-export async function updateProduct(req,res){
-    try{
-        const id = req.params.id
+// Get single product by ID
 
-        const selectedProduct = await products.findByIdAndUpdate(id)
-        if(!selectedProduct){
-            return res.json("invalid product")
-        }
-        if(selectedProduct){
-    console.log(selectedProduct);
-    return res.json("succesfull updated")
-        }
+export  async function getSingleProductAdmin(req,res){
+  try {
+    const product = await products.findById(req.params.id).populate('category');
+    if (!product) {
+      return res.status(404).json({ message: "Product not found" });
     }
-    catch(err){
-        console.log(err);
+    res.status(200).json(product);
+  } catch (err) {
+    console.error("Error fetching product:", err);
+    res.status(500).json({ message: "Server error while fetching product" });
+  }
+};
+
+
+
+export async function updateProduct(req, res) {
+    try {
+        const id = req.params.id;
+        const { product_name, price, description, category } = req.body;
+
+        const updateData = { product_name, price, description, category };
+
+        // Handle image if uploaded
+        if (req.file) {
+            updateData.image = `/uploads/${req.file.filename}`;
+        }
+
+        const updatedProduct = await products.findByIdAndUpdate(id, updateData, {
+            new: true,
+            runValidators: true
+        });
+
+        if (!updatedProduct) {
+            return res.json({
+                success: false,
+                message: "Invalid product ID"
+            });
+        }
+
+        return res.json({
+            success: true,
+            message: "Product successfully updated",
+            product: updatedProduct
+        });
+    } catch (err) {
+        console.error(err);
+       
         
     }
 }
 
 
+
 // / ***************************!!!!!!!!!!!!!!!!!****************************!!!!!!!!!!!!!!!!!!!!!!!!***************!!!!!!!!!!!!!!!!!!!!!
+
+
+
+export async function getAllOrders(req,res){
+    try{
+        const allOrders =await orders.find().populate("user_id","username email",'')
+        .populate({path:"items.product_id",model:"products"})
+        .sort({createdAt:-1})
+        res.json(allOrders)
+    }
+    catch(err){
+        console.log(err);
+        res.json({message:"cant find orders"})
+        
+    }
+}
+
+
+export async function updateOrderStatus(req, res) {
+  try {
+    const { orderId } = req.params;
+    const { status } = req.body;
+
+    const updatedOrder = await orders.findByIdAndUpdate(
+      orderId,
+      { status },
+      { new: true }
+    );
+
+    if (!updatedOrder) {
+      return res.status(404).json({ message: "Order not found" });
+    }
+
+    res.status(200).json(updatedOrder);
+  } catch (error) {
+    console.error("Error updating order status:", error);
+    res.status(500).json({ message: "error updating order" });
+  }
+}
