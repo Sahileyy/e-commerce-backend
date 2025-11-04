@@ -37,7 +37,7 @@ export async function viewCart(req, res) {
       return res.status(200).json({ items: [], totalAmount: 0 });
     }
 
-    console.log(userCart);
+    // console.log(userCart);
     res.status(200).json(userCart);
   } catch (error) {
     console.error("Error fetching cart:", error);
@@ -45,6 +45,22 @@ export async function viewCart(req, res) {
   }
 }
 
+export async function getCartCount(req, res) {
+  try {
+    const user_id = req.session.user_id;
+    if (!user_id) return res.status(401).json({ count: 0 });
+
+    const userCart = await cart.findOne({ user_id });
+    const count = userCart
+      ? userCart.items.reduce((sum, i) => sum + i.quantity, 0)
+      : 0;
+
+    res.json({ count });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ count: 0 });
+  }
+}
 
 
 
@@ -121,60 +137,51 @@ export async function createCart(req, res) {
 // *****************************************//////////////////////////////////////////////////////////////////////////////////*********************************************
 
 export async function updateCart(req, res) {
+  try {
+    const cart_id = req.params.id;
+    const { productId, update } = req.body;
 
-    try {
-        const cart_id = req.params.id;
-        // console.log(cart_id);
-
-        const { productId, update } = req.body;
-        // console.log(req.body);
-
-        const carts = await cart.findOne({ _id: cart_id }).populate("items.productId")
-        // console.log(carts);
-
-        if (!carts) {
-            return res.json("carts not found")
-        }
-        const item = carts.items.filter(i => i.productId._id.toString() === productId);
-
-
-
-        console.log(item);
-
-        if (!item) {
-            return res.json("product not in this cart")
-        }
-
-        if (update === "increment") {
-            item[0].quantity += 1
-        }
-
-        else if (update === "decrement" && item[0].quantity > 1) {
-            item[0].quantity -= 1
-
-        }
-        else if (update === "decrement" && item.quantity === 1) {
-            carts.items.filter(element => element.productId.toString() !== productId)
-        }
-        else {
-            res.json("not able to update")
-        }
-
-        carts.totalAmount = carts.items.reduce((sum, element) => sum + element.quantity * element.price, 0)
-
-        await carts.save()
-        await carts.populate("items.productId")
-        res.json(carts)
-
-
+    const carts = await cart.findOne({ _id: cart_id }).populate("items.productId");
+    if (!carts) {
+      return res.status(404).json({ message: "Cart not found" });
     }
 
-    catch (errr) {
-        console.log(errr);
-        res.json("something went wrong")
-
-
+    // find the item in the cart
+    const item = carts.items.find(i => i.productId._id.toString() === productId);
+    if (!item) {
+      return res.status(404).json({ message: "Product not in this cart" });
     }
+
+    // update logic
+    if (update === "increment") {
+      item.quantity += 1;
+    } else if (update === "decrement" && item.quantity > 1) {
+      item.quantity -= 1;
+    } else if (update === "decrement" && item.quantity === 1) {
+      carts.items = carts.items.filter(
+        element => element.productId._id.toString() !== productId
+      );
+    } else {
+      return res.status(400).json({ message: "Invalid update action" });
+    }
+
+    // recalculate total
+    carts.totalAmount = carts.items.reduce(
+      (sum, element) => sum + element.quantity * element.productId.price,
+      0
+    );
+
+    await carts.save();
+    await carts.populate("items.productId");
+
+    res.status(200).json({
+      message: "Cart updated successfully",
+      cart: carts
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Something went wrong" });
+  }
 }
 
 
@@ -183,20 +190,41 @@ export async function updateCart(req, res) {
 
 export async function deleteCart(req, res) {
     try {
-        const cart_id = req.params.id
-        const selectedCart = await cart.findByIdAndDelete(cart_id)
-
-        if (!selectedCart) {
-            return res.json('cart not found')
+        const cart_id = req.params.id;
+        const { product_id } = req.body;
+        
+        const mycart = await cart.findById(cart_id);
+        
+        if (!mycart) {
+            return res.status(404).json({ message: "Cart not found" });
         }
-        if (selectedCart) {
-            res.json(selectedCart)
-        }
-    }
-    catch (err) {
+        
+        // Filter out the item - convert ObjectId to string for comparison
+        const newItems = mycart.items.filter(
+            (item) => item.productId.toString() !== product_id
+        );
+        
+        // Calculate new total
+        const newTotal = newItems.reduce(
+            (sum, item) => sum + item.quantity * item.price,
+            0
+        );
+        
+        // Update the cart
+        mycart.items = newItems;
+        mycart.totalAmount = newTotal;
+        
+        // Save to database
+        await mycart.save();
+        
+        res.json({ 
+            message: "Item removed successfully", 
+            cart: mycart 
+        });
+        
+    } catch (err) {
         console.log(err);
-        res.json("something went wrong")
-
+        res.status(500).json({ message: "Something went wrong", error: err.message });
     }
 }
 // *****************************************//////////////////////////////////////////////////////////////////////////////////*********************************************

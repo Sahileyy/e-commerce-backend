@@ -20,17 +20,19 @@ export async function loginControl(req, res) {
     if (!passCheck) {
       return res.json({ message: "Invalid password" });
     }
+     if (loginUser.enable === false) {
+      return res.json({ message: "Admin blocked you" });
+    }
 
     if (loginUser.role !== "user") {
       return res.json({ message: "Not authorized as user" });
     }
 
-    // Store session info if using express-session
+    
     req.session.user_id = loginUser._id;
     req.session.role = loginUser.role;
     req.session.username = loginUser.username;
 
-    // ✅ send proper response
     return res.json({
       message: "USER LOGGED IN",
       user: {
@@ -68,7 +70,7 @@ export async function adminLoginControl(req, res) {
     req.session.role = adminUser.role;
     req.session.username = adminUser.username;
 
-    // ✅ send consistent response
+   
     console.log(adminUser);
     return res.json({
       message: "ADMIN LOGGED IN",
@@ -167,29 +169,34 @@ export async function addCategory(req,res) {
 }
 
 // ***************************!!!!!!!!!!!!!!!!!******************delete category***********!!!!!!!!!!!!!!!!!!!!!!!!***************!!!!!!!!!!!!!!!!!!!!!
-export async function deleteCategory(req,res){
-    try{
-        const id = req.params.id
-        const selectedCategory = await category.findByIdAndDelete(id)
-        if(!selectedCategory){
-            return res.json("invalid product")
-        }
-        if(selectedCategory){
-            const deleteProducts = await products.deleteMany({
-                category:id
-
-            })
-            console.log(deleteProducts);
-            
-
-            return res.status(200).json({message:"category and products inside deleted"})
-        }
-    }
-    catch(err){
-        console.log(err);
+export async function deleteCategory(req, res) {
+    try {
+        const id = req.params.id;
         
+        // Check if category exists
+        const selectedCategory = await category.findById(id);
+        if (!selectedCategory) {
+            return res.status(404).json({ message: "Invalid category" });
+        }
+        
+        // Check if category has products
+        const productCount = await products.countDocuments({ category: id });
+        
+        if (productCount > 0) {
+            return res.status(400).json({ 
+                message: "Cannot delete category. It contains products.",
+                productCount: productCount 
+            });
+        }
+        
+        // If no products, delete the category
+        await category.findByIdAndDelete(id);
+        return res.status(200).json({ message: "Category deleted successfully" });
+        
+    } catch (err) {
+        console.log(err);
+        return res.status(500).json({ message: "Error deleting category" });
     }
-
 }
 // / ***************************!!!!!!!!!!!!!!!!!******************category update***********!!!!!!!!!!!!!!!!!!!!!!!!***************!!!!!!!!!!!!!!!!!!!!!
 
