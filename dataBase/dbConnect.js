@@ -2,7 +2,7 @@ import mongoose from 'mongoose'
 
 export async function connectDB() {
     try{
-        await mongoose.connect("mongodb://127.0.0.1:27017/CosmeticDB")
+        await mongoose.connect("mongodb+srv://sahildevxtra_db_user:<db_password>@cluster0.renrcju.mongodb.net/?appName=Cluster0");
           console.log('DB connected');
 
           
