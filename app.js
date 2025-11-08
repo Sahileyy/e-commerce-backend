@@ -14,7 +14,7 @@ const port = 3030;
 
 const app = express()
 app.use(cors({
-  origin:['http://localhost:5174', 'http://localhost:5173','http://13.201.21.101/'],
+  origin:['http://localhost:5174', 'http://localhost:5173','http://13.201.21.101'],
   credentials:true
 }))
 app.use(
@@ -34,13 +34,13 @@ app.use(
 // app.use(bodyParser.json())
 app.use(express.json())
 app.use(express.urlencoded({extended:true}))
-app.use("/uploads", express.static("uploads"));
+app.use("/api/uploads", express.static("uploads"));
 
 // app.use(bodyParser.urlencoded ({extended:true}))
 
-app.use('/user',userRouter)
-app.use('/admin',adminRouter)
-app.use('/',publicRouter)
+app.use('/api/user',userRouter)
+app.use('/api/admin',adminRouter)
+app.use('/api/',publicRouter)
 
  app.listen(port,()=>{
     console.log(`port :${port} running`);
