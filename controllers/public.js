@@ -34,6 +34,26 @@ export async function getProductbyCategory(req, res) {
   }
 }
 
+export async function searchProducts(req, res) {
+  try {
+    // Get ?query parameter from URL
+    const searchTerm = req.query.query || "";
+
+    // Find matching products (case-insensitive, partial match)
+    const results = await products
+      .find({
+        product_name: { $regex: searchTerm, $options: "i" },
+      })
+      .populate("category");
+
+    // Return JSON response
+    res.json(results);
+  } catch (err) {
+    console.error("Error searching products:", err);
+    res.status(500).json({ message: "Server error while searching" });
+  }
+}
+
 
 export async function productView(req,res) {
     try{
