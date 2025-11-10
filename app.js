@@ -6,7 +6,7 @@ import adminRouter from './routes/adminRoutes.js';
 import publicRouter from './routes/publicRoutes.js';
 import session from 'express-session';
 import MongoStore from 'connect-mongo'
-const DATABASE_URI ="mongodb://127.0.0.1:27017/CosmeticDB"
+const DATABASE_URI ="mongodb+srv://sahil:sahil123@cluster0.renrcju.mongodb.net/cosmeticDB"
 import cors from 'cors'
 
 const port = 3030;

@@ -1,5 +1,5 @@
 import express from 'express'
-import { getProductbyCategory, isAuth, logout, productView, searchProducts, viewCategory } from '../controllers/public.js'
+import { getProductbyCategory, logout, productView, searchProducts, viewCategory } from '../controllers/public.js'
 
 const publicRouter = express.Router()
 
